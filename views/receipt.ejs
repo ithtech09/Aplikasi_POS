@@ -1,0 +1,69 @@
+<%- include('partials/header', { activeNav, pageTitle, appName }) %>
+
+<div class="mx-auto max-w-md space-y-4">
+
+  <div class="card p-5">
+
+    <div class="text-center">
+      <p class="text-sm font-semibold text-slate-100"><%= appName %></p>
+      <p class="text-xs text-slate-500">Struk Pembayaran</p>
+    </div>
+
+    <div class="my-4 border-t border-dashed border-slate-600"></div>
+
+    <div class="space-y-1 text-xs">
+      <div class="flex justify-between">
+        <span class="text-slate-400">No. Nota</span>
+        <span class="font-mono text-slate-100"><%= transaction.invoiceNumber %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Tanggal</span>
+        <span class="text-slate-100"><%= new Date(transaction.createdAt).toLocaleString('id-ID') %></span>
+      </div>
+    </div>
+
+    <div class="my-4 border-t border-dashed border-slate-600"></div>
+
+    <ul class="space-y-2">
+      <% items.forEach(function (item) { %>
+        <li class="text-xs">
+          <div class="flex justify-between gap-2">
+            <span class="font-medium text-slate-100"><%= item.productName %></span>
+            <span class="shrink-0 font-semibold text-slate-100 tabular"><%= formatCurrency(item.subtotal) %></span>
+          </div>
+          <div class="text-slate-500 tabular">
+            <%= item.quantity %> x <%= formatCurrency(item.priceAtSale) %>
+            <span class="font-mono">(<%= item.sku %>)</span>
+          </div>
+        </li>
+      <% }); %>
+    </ul>
+
+    <div class="my-4 border-t border-dashed border-slate-600"></div>
+
+    <div class="space-y-1 text-sm">
+      <div class="flex justify-between">
+        <span class="font-semibold text-slate-100">TOTAL</span>
+        <span class="font-bold text-emerald-400 tabular"><%= formatCurrency(transaction.totalAmount) %></span>
+      </div>
+      <div class="flex justify-between text-xs">
+        <span class="text-slate-400">Tunai</span>
+        <span class="text-slate-200 tabular"><%= formatCurrency(transaction.cashPaid) %></span>
+      </div>
+      <div class="flex justify-between text-xs">
+        <span class="text-slate-400">Kembali</span>
+        <span class="font-semibold text-slate-100 tabular"><%= formatCurrency(transaction.changeAmount) %></span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="grid gap-2 sm:grid-cols-2">
+    <a href="/pos/transactions/<%= transaction.id %>/pdf" target="_blank" rel="noopener"
+       class="btn-primary w-full">Download PDF</a>
+    <a href="/pos" class="btn-secondary w-full">Transaksi Baru</a>
+  </div>
+
+</div>
+
+<%- include('partials/footer', { appName }) %>

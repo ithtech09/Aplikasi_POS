@@ -1,0 +1,94 @@
+<%- include('../partials/header', { activeNav, pageTitle, appName }) %>
+
+<div class="space-y-4">
+
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-lg font-semibold text-slate-100">Laporan Harian</h1>
+      <p class="text-xs text-slate-500"><%= report.date %></p>
+    </div>
+
+    <form method="GET" action="/admin/reports/daily" class="flex items-end gap-2">
+      <div>
+        <label class="label" for="dateInput">Tanggal</label>
+        <input id="dateInput" name="date" type="date" value="<%= report.date %>" class="input w-44" />
+      </div>
+      <button type="submit" class="btn-primary">Tampilkan</button>
+      <a href="/admin/reports/daily?date=<%= todayKey %>" class="btn-secondary">Hari Ini</a>
+    </form>
+  </div>
+
+  <!-- ============================ KARTU METRIK ============================ -->
+  <div class="grid gap-4 sm:grid-cols-3">
+
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-slate-400">Total Omzet Harian</p>
+      <p class="mt-1 text-2xl font-bold text-emerald-400 tabular">
+        <%= formatCurrency(report.summary.totalRevenue) %>
+      </p>
+    </div>
+
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-slate-400">Total Transaksi Berhasil</p>
+      <p class="mt-1 text-2xl font-bold text-slate-100 tabular">
+        <%= report.summary.totalTransactions %>
+      </p>
+    </div>
+
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-slate-400">Total Porsi Menu Terjual</p>
+      <p class="mt-1 text-2xl font-bold text-slate-100 tabular">
+        <%= report.summary.totalItemsSold %>
+      </p>
+    </div>
+
+  </div>
+
+  <!-- ============================ TABEL RINCIAN ============================ -->
+  <div class="card overflow-hidden">
+    <div class="border-b border-slate-700/60 px-4 py-3">
+      <h2 class="text-sm font-semibold text-slate-100">Rincian Penjualan per Menu</h2>
+    </div>
+
+    <% if (report.items.length === 0) { %>
+      <p class="p-8 text-center text-sm text-slate-400">
+        Tidak ada transaksi pada tanggal ini.
+      </p>
+    <% } else { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-700/60 bg-slate-800/80 text-xs uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-4 py-2 font-medium">Kode Menu</th>
+              <th class="px-4 py-2 font-medium">Nama Menu</th>
+              <th class="px-4 py-2 text-right font-medium">Harga Satuan</th>
+              <th class="px-4 py-2 text-right font-medium">Total Terjual</th>
+              <th class="px-4 py-2 text-right font-medium">Total Pendapatan</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-700/40">
+            <% report.items.forEach(function (item) { %>
+              <tr>
+                <td class="px-4 py-2 font-mono text-xs text-slate-400"><%= item.sku %></td>
+                <td class="px-4 py-2 font-medium text-slate-100"><%= item.name %></td>
+                <td class="px-4 py-2 text-right text-slate-300 tabular"><%= formatCurrency(item.priceAtSale) %></td>
+                <td class="px-4 py-2 text-right text-slate-100 tabular"><%= item.totalQuantity %></td>
+                <td class="px-4 py-2 text-right font-semibold text-emerald-400 tabular"><%= formatCurrency(item.totalRevenue) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+          <tfoot class="border-t border-slate-700/60 bg-slate-800/60">
+            <tr>
+              <td colspan="3" class="px-4 py-2 text-xs uppercase tracking-wide text-slate-400">Total</td>
+              <td class="px-4 py-2 text-right font-semibold text-slate-100 tabular"><%= report.summary.totalItemsSold %></td>
+              <td class="px-4 py-2 text-right font-bold text-emerald-400 tabular"><%= formatCurrency(report.summary.totalRevenue) %></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+</div>
+
+<%- include('../partials/footer', { appName }) %>

@@ -1,0 +1,383 @@
+<%- include('../partials/header', { activeNav, pageTitle, appName }) %>
+
+<div class="grid gap-4 lg:grid-cols-[1fr_380px]">
+
+  <!-- ============================ KOLOM KIRI: DAFTAR MENU ============================ -->
+  <section class="space-y-4">
+
+    <div class="card p-4">
+      <label class="label" for="searchInput">Cari menu</label>
+      <input id="searchInput" type="search" class="input" autocomplete="off"
+             placeholder="Ketik nama atau kode menu..." />
+      <p class="mt-2 text-xs text-slate-500">
+        <span id="visibleCount"><%= products.length %></span> menu aktif tersedia
+      </p>
+    </div>
+
+    <% if (products.length === 0) { %>
+      <div class="card p-8 text-center">
+        <p class="text-sm text-slate-400">Belum ada menu aktif.</p>
+        <a href="/admin" class="btn-primary mt-4">Tambah menu di Admin</a>
+      </div>
+    <% } else { %>
+      <div id="productGrid" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <% products.forEach(function (product) { %>
+          <%
+            const isOut = product.stock <= 0;
+            const isLow = product.stock > 0 && product.stock <= 5;
+          %>
+          <button type="button"
+                  class="product-card card flex flex-col gap-2 p-4 text-left transition-colors <%= isOut
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'hover:border-emerald-500/60 hover:bg-slate-700' %>"
+                  data-id="<%= product.id %>"
+                  data-sku="<%= product.sku %>"
+                  data-name="<%= product.name %>"
+                  data-price="<%= product.price %>"
+                  data-stock="<%= product.stock %>"
+                  data-out="<%= isOut ? '1' : '0' %>"
+                  <%= isOut ? 'disabled' : '' %>>
+
+            <div class="flex items-start justify-between gap-2">
+              <span class="text-sm font-semibold text-slate-100"><%= product.name %></span>
+              <span class="shrink-0 rounded-md bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
+                <%= product.sku %>
+              </span>
+            </div>
+
+            <div class="flex items-end justify-between gap-2">
+              <span class="text-base font-bold text-emerald-400 tabular">
+                <%= formatCurrency(product.price) %>
+              </span>
+              <% if (isOut) { %>
+                <span class="text-xs font-medium text-red-400">Habis</span>
+              <% } else if (isLow) { %>
+                <span class="text-xs font-medium text-amber-400">Sisa <%= product.stock %></span>
+              <% } else { %>
+                <span class="text-xs text-slate-500">Stok <%= product.stock %></span>
+              <% } %>
+            </div>
+
+            <span class="text-[11px] uppercase tracking-wide text-slate-500"><%= product.category %></span>
+          </button>
+        <% }); %>
+      </div>
+
+      <p id="emptySearch" class="card hidden p-8 text-center text-sm text-slate-400">
+        Tidak ada menu yang cocok dengan pencarian.
+      </p>
+    <% } %>
+
+  </section>
+
+  <!-- ============================ KOLOM KANAN: KERANJANG ============================ -->
+  <aside class="lg:sticky lg:top-4 lg:self-start">
+    <div class="card flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden">
+
+      <div class="border-b border-slate-700/60 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-100">Keranjang Pesanan</h2>
+        <p class="text-xs text-slate-500"><span id="cartCount">0</span> item</p>
+      </div>
+
+      <div id="cartList" class="thin-scroll flex-1 space-y-2 overflow-y-auto p-4">
+        <p id="cartEmpty" class="py-8 text-center text-sm text-slate-500">
+          Keranjang masih kosong.<br />Pilih menu di sebelah kiri.
+        </p>
+      </div>
+
+      <div class="space-y-3 border-t border-slate-700/60 bg-slate-800/60 p-4">
+
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-400">Total</span>
+          <span id="totalAmount" class="text-lg font-bold text-emerald-400 tabular">Rp 0</span>
+        </div>
+
+        <div>
+          <label class="label" for="cashPaid">Uang tunai diterima</label>
+          <input id="cashPaid" type="number" min="0" step="100" inputmode="numeric"
+                 class="input tabular" placeholder="0" />
+        </div>
+
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-400">Kembalian</span>
+          <span id="changeAmount" class="font-semibold text-slate-100 tabular">Rp 0</span>
+        </div>
+
+        <p id="checkoutError" class="hidden rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300"></p>
+
+        <button id="checkoutBtn" type="button" class="btn-primary w-full" disabled>
+          Proses Pembayaran
+        </button>
+
+        <button id="clearBtn" type="button" class="btn-secondary w-full text-xs">
+          Kosongkan Keranjang
+        </button>
+      </div>
+
+    </div>
+  </aside>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var cart = new Map();
+  var productGrid = document.getElementById('productGrid');
+  var cartList = document.getElementById('cartList');
+  var cartEmpty = document.getElementById('cartEmpty');
+  var cartCount = document.getElementById('cartCount');
+  var totalAmountEl = document.getElementById('totalAmount');
+  var changeAmountEl = document.getElementById('changeAmount');
+  var cashPaidEl = document.getElementById('cashPaid');
+  var checkoutBtn = document.getElementById('checkoutBtn');
+  var checkoutError = document.getElementById('checkoutError');
+  var clearBtn = document.getElementById('clearBtn');
+  var searchInput = document.getElementById('searchInput');
+  var emptySearch = document.getElementById('emptySearch');
+  var visibleCount = document.getElementById('visibleCount');
+
+  function formatRupiah(value) {
+    var rounded = Math.round(value * 100) / 100;
+    return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(rounded);
+  }
+
+  function totalOf() {
+    var total = 0;
+    cart.forEach(function (line) { total += line.price * line.quantity; });
+    return Math.round(total * 100) / 100;
+  }
+
+  function showError(message) {
+    checkoutError.textContent = message;
+    checkoutError.classList.remove('hidden');
+  }
+
+  function clearError() {
+    checkoutError.textContent = '';
+    checkoutError.classList.add('hidden');
+  }
+
+  function renderCart() {
+    cartList.querySelectorAll('[data-cart-row]').forEach(function (node) { node.remove(); });
+
+    if (cart.size === 0) {
+      cartEmpty.classList.remove('hidden');
+    } else {
+      cartEmpty.classList.add('hidden');
+    }
+
+    var count = 0;
+    cart.forEach(function (line) {
+      count += line.quantity;
+
+      var row = document.createElement('div');
+      row.setAttribute('data-cart-row', '1');
+      row.className = 'rounded-lg border border-slate-700/60 bg-slate-900/40 p-3';
+
+      var head = document.createElement('div');
+      head.className = 'flex items-start justify-between gap-2';
+
+      var name = document.createElement('span');
+      name.className = 'text-sm font-medium text-slate-100';
+      name.textContent = line.name;
+
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'text-xs text-red-400 hover:text-red-300';
+      remove.textContent = 'Hapus';
+      remove.addEventListener('click', function () {
+        cart.delete(line.id);
+        renderCart();
+      });
+
+      head.appendChild(name);
+      head.appendChild(remove);
+
+      var body = document.createElement('div');
+      body.className = 'mt-2 flex items-center justify-between gap-2';
+
+      var controls = document.createElement('div');
+      controls.className = 'flex items-center gap-1';
+
+      var minus = document.createElement('button');
+      minus.type = 'button';
+      minus.className = 'h-7 w-7 rounded-md border border-slate-700 text-sm text-slate-200 hover:bg-slate-700';
+      minus.textContent = '-';
+      minus.addEventListener('click', function () {
+        if (line.quantity <= 1) { cart.delete(line.id); } else { line.quantity -= 1; }
+        renderCart();
+      });
+
+      var qty = document.createElement('span');
+      qty.className = 'w-8 text-center text-sm font-semibold tabular';
+      qty.textContent = String(line.quantity);
+
+      var plus = document.createElement('button');
+      plus.type = 'button';
+      plus.className = 'h-7 w-7 rounded-md border border-slate-700 text-sm text-slate-200 hover:bg-slate-700';
+      plus.textContent = '+';
+      plus.addEventListener('click', function () {
+        if (line.quantity >= line.stock) {
+          showError('Stok "' + line.name + '" hanya ' + line.stock + ' porsi.');
+          return;
+        }
+        line.quantity += 1;
+        renderCart();
+      });
+
+      controls.appendChild(minus);
+      controls.appendChild(qty);
+      controls.appendChild(plus);
+
+      var subtotal = document.createElement('span');
+      subtotal.className = 'text-sm font-semibold text-emerald-400 tabular';
+      subtotal.textContent = formatRupiah(line.price * line.quantity);
+
+      body.appendChild(controls);
+      body.appendChild(subtotal);
+
+      row.appendChild(head);
+      row.appendChild(body);
+      cartList.appendChild(row);
+    });
+
+    cartCount.textContent = String(count);
+
+    var total = totalOf();
+    totalAmountEl.textContent = formatRupiah(total);
+
+    var cash = parseFloat(cashPaidEl.value);
+    if (!isFinite(cash)) { cash = 0; }
+    var change = Math.round((cash - total) * 100) / 100;
+
+    changeAmountEl.textContent = formatRupiah(change > 0 ? change : 0);
+    changeAmountEl.className = change < 0
+      ? 'font-semibold text-red-400 tabular'
+      : 'font-semibold text-slate-100 tabular';
+
+    checkoutBtn.disabled = cart.size === 0 || total <= 0;
+  }
+
+  if (productGrid) {
+    productGrid.querySelectorAll('.product-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        if (card.getAttribute('data-out') === '1') { return; }
+
+        var id = Number(card.getAttribute('data-id'));
+        var stock = Number(card.getAttribute('data-stock'));
+        var existing = cart.get(id);
+
+        if (existing) {
+          if (existing.quantity >= stock) {
+            showError('Stok "' + existing.name + '" hanya ' + stock + ' porsi.');
+            return;
+          }
+          existing.quantity += 1;
+        } else {
+          cart.set(id, {
+            id: id,
+            name: card.getAttribute('data-name'),
+            price: Number(card.getAttribute('data-price')),
+            stock: stock,
+            quantity: 1
+          });
+        }
+
+        clearError();
+        renderCart();
+      });
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      var keyword = searchInput.value.trim().toLowerCase();
+      var shown = 0;
+
+      if (productGrid) {
+        productGrid.querySelectorAll('.product-card').forEach(function (card) {
+          var name = (card.getAttribute('data-name') || '').toLowerCase();
+          var sku = (card.getAttribute('data-sku') || '').toLowerCase();
+          var match = keyword.length === 0 || name.indexOf(keyword) !== -1 || sku.indexOf(keyword) !== -1;
+          card.classList.toggle('hidden', !match);
+          if (match) { shown += 1; }
+        });
+      }
+
+      if (visibleCount) { visibleCount.textContent = String(shown); }
+      if (emptySearch) { emptySearch.classList.toggle('hidden', shown !== 0); }
+    });
+  }
+
+  cashPaidEl.addEventListener('input', renderCart);
+
+  clearBtn.addEventListener('click', function () {
+    cart.clear();
+    cashPaidEl.value = '';
+    clearError();
+    renderCart();
+  });
+
+  checkoutBtn.addEventListener('click', function () {
+    clearError();
+
+    var items = [];
+    cart.forEach(function (line) {
+      items.push({ productId: line.id, quantity: line.quantity });
+    });
+
+    var cash = parseFloat(cashPaidEl.value);
+    if (!isFinite(cash) || cash < 0) {
+      showError('Masukkan uang tunai yang valid.');
+      return;
+    }
+
+    if (cash < totalOf()) {
+      showError('Uang tunai kurang dari total belanja.');
+      return;
+    }
+
+    checkoutBtn.disabled = true;
+    checkoutBtn.textContent = 'Memproses...';
+
+    fetch('/pos/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ items: items, cashPaid: cash })
+    })
+      .then(function (response) {
+        return response.json().then(function (payload) {
+          return { status: response.status, payload: payload };
+        });
+      })
+      .then(function (result) {
+        if (result.payload && result.payload.success === true) {
+          window.location.href = '/pos/transactions/' + result.payload.data.transaction.id;
+          return;
+        }
+
+        var message = 'Transaksi gagal.';
+        if (result.payload && result.payload.error) {
+          message = result.payload.error.message;
+          if (Array.isArray(result.payload.error.details) && result.payload.error.details.length > 0) {
+            message += ' ' + result.payload.error.details.join(' ');
+          }
+        }
+        showError(message);
+        checkoutBtn.disabled = false;
+        checkoutBtn.textContent = 'Proses Pembayaran';
+      })
+      .catch(function () {
+        showError('Tidak dapat menghubungi server. Periksa koneksi.');
+        checkoutBtn.disabled = false;
+        checkoutBtn.textContent = 'Proses Pembayaran';
+      });
+  });
+
+  renderCart();
+})();
+</script>
+
+<%- include('../partials/footer', { appName }) %>

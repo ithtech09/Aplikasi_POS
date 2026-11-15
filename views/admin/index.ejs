@@ -1,0 +1,160 @@
+<%- include('../partials/header', { activeNav, pageTitle, appName }) %>
+
+<div class="space-y-4">
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-lg font-semibold text-slate-100">Manajemen Menu</h1>
+      <p class="text-xs text-slate-500"><%= products.length %> menu terdaftar</p>
+    </div>
+    <form method="GET" action="<%= adminPath %>" class="flex items-center gap-2">
+      <input type="search" name="q" value="<%= search %>" class="input w-56"
+             placeholder="Cari nama atau SKU..." />
+      <button type="submit" class="btn-secondary">Cari</button>
+    </form>
+  </div>
+
+  <% if (successMessage) { %>
+    <div class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+      <%= successMessage %>
+    </div>
+  <% } %>
+
+  <% if (errors.length > 0) { %>
+    <div class="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3">
+      <p class="text-sm font-medium text-red-300">Periksa kembali data berikut:</p>
+      <ul class="mt-1 list-inside list-disc text-xs text-red-300">
+        <% errors.forEach(function (message) { %><li><%= message %></li><% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <div class="grid gap-4 xl:grid-cols-[380px_1fr]">
+
+    <!-- ============================ FORM TAMBAH MENU ============================ -->
+    <section class="card h-fit p-4">
+      <h2 class="mb-3 text-sm font-semibold text-slate-100">Tambah Menu Baru</h2>
+
+      <form method="POST" action="<%= adminPath %>/products" class="space-y-3">
+        <div>
+          <label class="label" for="new-sku">Kode menu (SKU)</label>
+          <input id="new-sku" name="sku" class="input" maxlength="50" required
+                 value="<%= form.sku %>" placeholder="MKN-001" />
+        </div>
+
+        <div>
+          <label class="label" for="new-name">Nama menu</label>
+          <input id="new-name" name="name" class="input" maxlength="150" required
+                 value="<%= form.name %>" placeholder="Nasi Goreng" />
+        </div>
+
+        <div>
+          <label class="label" for="new-category">Kategori</label>
+          <input id="new-category" name="category" class="input" maxlength="50"
+                 list="categoryOptions" value="<%= form.category %>" />
+          <datalist id="categoryOptions">
+            <% categories.forEach(function (category) { %><option value="<%= category %>"></option><% }); %>
+          </datalist>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label" for="new-price">Harga jual</label>
+            <input id="new-price" name="price" type="number" min="0" step="0.01" class="input tabular"
+                   required value="<%= form.price %>" placeholder="15000" />
+          </div>
+          <div>
+            <label class="label" for="new-stock">Stok porsi</label>
+            <input id="new-stock" name="stock" type="number" min="0" step="1" class="input tabular"
+                   required value="<%= form.stock %>" placeholder="20" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary w-full">Simpan Menu</button>
+      </form>
+    </section>
+
+    <!-- ============================ TABEL MENU ============================ -->
+    <section class="card overflow-hidden">
+      <% if (products.length === 0) { %>
+        <p class="p-8 text-center text-sm text-slate-400">
+          Belum ada menu. Tambahkan menu pertama lewat form di samping.
+        </p>
+      <% } else { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="border-b border-slate-700/60 bg-slate-800/80 text-xs uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-3 py-2 font-medium">SKU</th>
+                <th class="px-3 py-2 font-medium">Nama</th>
+                <th class="px-3 py-2 font-medium">Kategori</th>
+                <th class="px-3 py-2 text-right font-medium">Harga</th>
+                <th class="px-3 py-2 text-right font-medium">Stok</th>
+                <th class="px-3 py-2 text-center font-medium">Status</th>
+                <th class="px-3 py-2 text-right font-medium">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700/40">
+              <% products.forEach(function (product) { %>
+                <tr class="<%= product.isActive ? '' : 'opacity-60' %>">
+                  <td class="px-3 py-2 font-mono text-xs text-slate-400"><%= product.sku %></td>
+                  <td class="px-3 py-2 font-medium text-slate-100"><%= product.name %></td>
+                  <td class="px-3 py-2 text-xs text-slate-400"><%= product.category %></td>
+
+                  <td class="px-3 py-2 text-right">
+                    <form method="POST" action="<%= adminPath %>/products/<%= product.id %>" class="flex items-center justify-end gap-1">
+                      <input name="price" type="number" min="0" step="0.01" value="<%= product.price %>"
+                             class="input w-24 px-2 py-1 text-right text-xs tabular" />
+                      <button type="submit" class="btn-secondary px-2 py-1 text-xs">Simpan</button>
+                    </form>
+                  </td>
+
+                  <td class="px-3 py-2 text-right">
+                    <span class="tabular <%= product.stock <= lowStockThreshold ? 'font-semibold text-amber-400' : 'text-slate-200' %>">
+                      <%= product.stock %>
+                    </span>
+                  </td>
+
+                  <td class="px-3 py-2 text-center">
+                    <% if (!product.isActive) { %>
+                      <span class="rounded-md bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-slate-300">Nonaktif</span>
+                    <% } else if (product.stock <= 0) { %>
+                      <span class="rounded-md bg-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-300">Habis</span>
+                    <% } else if (product.stock <= lowStockThreshold) { %>
+                      <span class="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">Menipis</span>
+                    <% } else { %>
+                      <span class="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300">Aktif</span>
+                    <% } %>
+                  </td>
+
+                  <td class="px-3 py-2">
+                    <div class="flex items-center justify-end gap-1">
+                      <form method="POST" action="<%= adminPath %>/products/<%= product.id %>" class="flex items-center gap-1">
+                        <input name="stock" type="number" min="0" step="1" value="<%= product.stock %>"
+                               class="input w-16 px-2 py-1 text-right text-xs tabular" />
+                        <button type="submit" class="btn-secondary px-2 py-1 text-xs">Stok</button>
+                      </form>
+
+                      <% if (product.isActive) { %>
+                        <form method="POST" action="<%= adminPath %>/products/<%= product.id %>/delete">
+                          <button type="submit" class="btn-danger">Nonaktifkan</button>
+                        </form>
+                      <% } else { %>
+                        <form method="POST" action="<%= adminPath %>/products/<%= product.id %>/restore">
+                          <button type="submit" class="btn-secondary px-2 py-1 text-xs">Aktifkan</button>
+                        </form>
+                      <% } %>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+  </div>
+</div>
+
+<%- include('../partials/footer', { appName }) %>
